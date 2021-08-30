@@ -7,11 +7,32 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
 
-func WalkDir(filepath string, wg *sync.WaitGroup) ([]string, error) {
+type fetch func(string, *sync.WaitGroup)
+
+func fetchLinux(path string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	runGitCommand(path, "git", "fetch", "--all")
+}
+
+func fetchWin(path string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	runGitCommand(path, "cmd", "/C", "git", "fetch", "--all")
+}
+
+func runGitCommand(path string, name string, arg ...string) {
+	cmd := exec.Command(name, arg...)
+	cmd.Dir = path
+	msg, _ := cmd.CombinedOutput()
+	_ = cmd.Run()
+	fmt.Printf("%s\n%s\n", path, msg)
+}
+
+func WalkDir(filepath string, fetchCMD fetch, wg *sync.WaitGroup) ([]string, error) {
 	files, err := ioutil.ReadDir(filepath) // files为当前目录下的所有文件名称【包括文件夹】
 	if err != nil {
 		return nil, err
@@ -24,23 +45,17 @@ func WalkDir(filepath string, wg *sync.WaitGroup) ([]string, error) {
 
 		if ".git" == name {
 			wg.Add(1)
-			go fetch(fullPath, wg)
+			go fetchCMD(fullPath, wg)
 			break
 		} else {
 			if v.IsDir() {
 				// 如果是目录遍历改路径下的所有文件
-				a, _ := WalkDir(fullPath+name, wg)
+				a, _ := WalkDir(fullPath+name, fetchCMD, wg)
 				pathList = append(pathList, a...)
 			}
 		}
 	}
 	return pathList, nil
-}
-
-func fetch(path string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	fetchLog, _ := runGitCommand(path, "git", "fetch", "--all")
-	fmt.Printf("%s\n%s\n", path, fetchLog)
 }
 
 func getCurrentDirectory() string {
@@ -51,15 +66,14 @@ func getCurrentDirectory() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
-func runGitCommand(path string, name string, arg ...string) (string, error) {
-	cmd := exec.Command(name, arg...)
-	cmd.Dir = path
-	msg, err := cmd.CombinedOutput()
-	_ = cmd.Run()
-	return string(msg), err
-}
-
 func main() {
+	fetchCMD := fetchLinux
+	sysType := runtime.GOOS
+	if sysType == "windows" {
+		// windows系统
+		fetchCMD = fetchWin
+	}
+
 	dir := ""
 	if 1 == len(os.Args) {
 		dir = getCurrentDirectory()
@@ -71,8 +85,8 @@ func main() {
 
 	if dir != "" {
 		var wg sync.WaitGroup
-		_, _ = WalkDir(dir, &wg)
+		_, _ = WalkDir(dir, fetchCMD, &wg)
 		wg.Wait()
-		fmt.Printf(" %s fetch done.^_^.", dir)
+		fmt.Printf("%s fetch done.^_^.", dir)
 	}
 }
