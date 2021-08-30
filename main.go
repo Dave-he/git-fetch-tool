@@ -70,7 +70,6 @@ func main() {
 	fetchCMD := fetchLinux
 	sysType := runtime.GOOS
 	if sysType == "windows" {
-		// windows系统
 		fetchCMD = fetchWin
 	}
 
