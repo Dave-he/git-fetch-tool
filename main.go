@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -66,6 +67,15 @@ func getCurrentDirectory() string {
 	return strings.Replace(dir, "\\", "/", -1)
 }
 
+func process(dir string, fetchCMD fetch) {
+	if dir != "" {
+		var wg sync.WaitGroup
+		_, _ = WalkDir(dir, fetchCMD, &wg)
+		wg.Wait()
+		fmt.Printf("%s fetch done.^_^.", dir)
+	}
+}
+
 func main() {
 	fetchCMD := fetchLinux
 	sysType := runtime.GOOS
@@ -73,19 +83,16 @@ func main() {
 		fetchCMD = fetchWin
 	}
 
-	dir := ""
-	if 1 == len(os.Args) {
-		dir = getCurrentDirectory()
-	} else if 2 == len(os.Args) {
-		dir = os.Args[1]
-	} else {
-		fmt.Println("please input the path like: /work")
+	switch len(os.Args) {
+	case 1:
+		process(getCurrentDirectory(), fetchCMD)
+	case 2:
+		process(os.Args[1], fetchCMD)
+	default:
+		fmt.Println("please input the path like: C:/work")
 	}
 
-	if dir != "" {
-		var wg sync.WaitGroup
-		_, _ = WalkDir(dir, fetchCMD, &wg)
-		wg.Wait()
-		fmt.Printf("%s fetch done.^_^.", dir)
-	}
+	input := bufio.NewScanner(os.Stdin)
+	input.Scan()
+	fmt.Println(input.Text())
 }
