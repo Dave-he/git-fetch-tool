@@ -18,11 +18,13 @@ type fetch func(string, *sync.WaitGroup)
 func fetchLinux(path string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	runGitCommand(path, "git", "fetch", "--all")
+	runGitCommand(path, "git", "pull", "--all")
 }
 
 func fetchWin(path string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	runGitCommand(path, "cmd", "/C", "git", "fetch", "--all")
+	runGitCommand(path, "cmd", "/C", "git", "pull", "--all")
 }
 
 func runGitCommand(path string, name string, arg ...string) {
